@@ -15,20 +15,27 @@ const (
 	HealthStatusUnhealthy
 )
 
-type healthService struct {
+type HealthService interface {
 	pb.HealthServer
+
+	// AddProbe adds a new health probe to the service.
+	AddProbe(service string, probe func(ctx context.Context) HealthStatus)
+}
+
+type healthServiceImpl struct {
+	HealthService
 
 	// probes map[serviceName]HealthProbe
 	probes map[string]func(ctx context.Context) HealthStatus
 }
 
-func NewHealthService() pb.HealthServer {
-	return &healthService{
+func NewHealthService() HealthService {
+	return &healthServiceImpl{
 		probes: make(map[string]func(ctx context.Context) HealthStatus),
 	}
 }
 
-func (s *healthService) Check(ctx context.Context, req *pb.HealthCheckRequest) (*pb.HealthCheckResponse, error) {
+func (s *healthServiceImpl) Check(ctx context.Context, req *pb.HealthCheckRequest) (*pb.HealthCheckResponse, error) {
 	service := req.Service
 
 	if service == "" {
@@ -52,10 +59,10 @@ func (s *healthService) Check(ctx context.Context, req *pb.HealthCheckRequest) (
 	return &pb.HealthCheckResponse{Status: pb.HealthCheckResponse_UNKNOWN}, nil
 }
 
-func (s *healthService) Watch(req *pb.HealthCheckRequest, stream pb.Health_WatchServer) error {
+func (s *healthServiceImpl) Watch(req *pb.HealthCheckRequest, stream pb.Health_WatchServer) error {
 	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
 }
 
-func (s *healthService) AddProbe(service string, probe func(ctx context.Context) HealthStatus) {
+func (s *healthServiceImpl) AddProbe(service string, probe func(ctx context.Context) HealthStatus) {
 	s.probes[service] = probe
 }
