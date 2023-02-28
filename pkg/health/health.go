@@ -2,6 +2,7 @@ package health
 
 import (
 	"context"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	pb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
@@ -33,6 +34,10 @@ func NewHealthService() HealthService {
 	return &healthServiceImpl{
 		probes: make(map[string]func(ctx context.Context) HealthStatus),
 	}
+}
+
+func RegisterHealthServiceServer(s *grpc.Server, srv HealthService) {
+	pb.RegisterHealthServer(s, srv)
 }
 
 func (s *healthServiceImpl) Check(ctx context.Context, req *pb.HealthCheckRequest) (*pb.HealthCheckResponse, error) {
