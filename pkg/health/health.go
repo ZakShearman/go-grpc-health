@@ -15,21 +15,16 @@ const (
 	HealthStatusUnhealthy
 )
 
-type HealthProbe interface {
-	// Check returns the current health status of the service.
-	Check(ctx context.Context) HealthStatus
-}
-
 type healthService struct {
 	pb.HealthServer
 
 	// probes map[serviceName]HealthProbe
-	probes map[string]HealthProbe
+	probes map[string]func(ctx context.Context) HealthStatus
 }
 
 func NewHealthService() pb.HealthServer {
 	return &healthService{
-		probes: make(map[string]HealthProbe),
+		probes: make(map[string]func(ctx context.Context) HealthStatus),
 	}
 }
 
@@ -39,7 +34,7 @@ func (s *healthService) Check(ctx context.Context, req *pb.HealthCheckRequest) (
 	if service == "" {
 		// loop all services
 		for _, probe := range s.probes {
-			if probe.Check(ctx) == HealthStatusUnhealthy {
+			if probe(ctx) == HealthStatusUnhealthy {
 				return &pb.HealthCheckResponse{Status: pb.HealthCheckResponse_NOT_SERVING}, nil
 			}
 		}
@@ -48,7 +43,7 @@ func (s *healthService) Check(ctx context.Context, req *pb.HealthCheckRequest) (
 
 	// check named service
 	if probe, ok := s.probes[service]; ok {
-		if probe.Check(ctx) == HealthStatusUnhealthy {
+		if probe(ctx) == HealthStatusUnhealthy {
 			return &pb.HealthCheckResponse{Status: pb.HealthCheckResponse_NOT_SERVING}, nil
 		}
 		return &pb.HealthCheckResponse{Status: pb.HealthCheckResponse_SERVING}, nil
@@ -61,6 +56,6 @@ func (s *healthService) Watch(req *pb.HealthCheckRequest, stream pb.Health_Watch
 	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
 }
 
-func (s *healthService) AddProbe(service string, probe HealthProbe) {
+func (s *healthService) AddProbe(service string, probe func(ctx context.Context) HealthStatus) {
 	s.probes[service] = probe
 }
